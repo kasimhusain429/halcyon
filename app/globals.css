@@ -1,0 +1,120 @@
+/* scan only the source folders: render output under blender/ changes every few seconds */
+@import "tailwindcss" source(none);
+@source ".";
+@source "../components";
+@source "../lib";
+
+@theme {
+  --color-ink: #0d1820;
+  --color-ink-2: #14232d;
+  --color-slate: #5e7286;
+  --color-haze: #9aabbb;
+  --color-limestone: #d8d0c2;
+  --color-vellum: #e7eaea;
+  --color-walnut: #3f2c21;
+  --color-glow: #e9b67c;
+  --color-line: #1d2a33;
+
+  --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
+
+  --ease-arch: cubic-bezier(0.22, 0.61, 0.17, 1);
+}
+
+:root {
+  color-scheme: dark;
+  --gutter: clamp(16px, 3.2vw, 48px);
+}
+
+html {
+  background: var(--color-ink);
+  color: var(--color-limestone);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+body {
+  background: var(--color-ink);
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+  overflow-x: clip;
+}
+
+::selection {
+  background: var(--color-glow);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-glow);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* wide architectural grotesk — Archivo on its width axis */
+.font-wide {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-variation-settings: "wdth" 125;
+}
+.font-semi {
+  font-family: var(--font-display);
+  font-stretch: 100%;
+  font-variation-settings: "wdth" 100;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* fine photographic grain over the rendered walkthrough */
+.film-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 1.2 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 220px 220px;
+}
+
+/* drawing sheets meet on a diagonal, like a set of panels laid edge to edge */
+.sheet {
+  --cut: clamp(48px, 5.5vw, 104px);
+}
+@media (min-width: 1024px) {
+  .sheet {
+    clip-path: polygon(var(--cut) 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%);
+  }
+  .sheet + .sheet {
+    margin-left: calc(-1 * var(--cut) + 5px);
+  }
+  .sheet > .sheet-frame {
+    margin-inline: calc(var(--cut) + 14px);
+  }
+}
+
+@keyframes route {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
