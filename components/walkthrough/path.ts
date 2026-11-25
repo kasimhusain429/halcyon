@@ -17,9 +17,17 @@ export type Key = {
 
 /**
  * One continuous take: from the lake, up over the terraces, through the pivot door, a loop
- * around the great room (the lake through the gable), back across the hall, along the
- * kitchen, through the open bay in the glass partition, and down to the laptop in the study,
- * whose screen (the drawing set) fills the frame at the end.
+ * around the great room (the lake through the gable), back across the hall and up the
+ * floating stair to the bedroom gallery; into each of the three rooms off it in turn (the
+ * west suite by its walnut dressing passage, the bunk room to its window seat and back, a
+ * loop round the principal suite's travertine bed wall), back along the gallery and down the
+ * stair, along the kitchen, through the open bay in the glass partition, and down to the
+ * laptop in the study, whose screen (the drawing set) fills the frame at the end.
+ *
+ * The camera is a scripted path, not a physics walk: nothing stops a key sitting inside a wall.
+ * blender/check_route.py tests the whole route against the model (see the README).
+ *
+ * On the stair the eye stays 1.62 m above the treads: z = 1.84 + 0.75 * (y - 5.51).
  */
 export const KEYS: Key[] = [
   { p: [3.0, -58.0, 6.2], look: [2.0, 8.0, 6.6], lens: 32, dens: 1.1, ev: 0.35, chapter: "threshold" },
@@ -36,13 +44,80 @@ export const KEYS: Key[] = [
   { p: [-0.4, 6.3, 1.64], look: [-4.5, 8.6, 2.5], lens: 22, dens: 3.0, ev: 0.9 },
   { p: [-2.3, 7.4, 1.62], look: [-12.0, 7.6, 2.0], lens: 22, dens: 2.6, ev: 0.55, chapter: "great" },
   { p: [-3.9, 7.0, 1.64], look: [-13.6, 6.6, 2.2], lens: 21, dens: 2.4, ev: 0.55 },
-  { p: [-5.6, 6.3, 1.72], look: [-13.4, 3.4, 2.6], lens: 20, dens: 2.4, ev: 0.55 },
-  { p: [-7.0, 5.4, 1.86], look: [-10.6, -1.2, 3.0], lens: 20, dens: 2.4, ev: 0.55 },
+  // round the east and south side of the second sofa (x -7.05..-6.05, y 5.1..7.7), not over it
+  { p: [-5.3, 5.7, 1.7], look: [-13.4, 3.4, 2.6], lens: 20, dens: 2.4, ev: 0.55 },
+  { p: [-6.4, 4.3, 1.74], look: [-10.6, -1.2, 3.0], lens: 20, dens: 2.4, ev: 0.55 },
   { p: [-7.6, 3.6, 1.8], look: [-8.5, -6.0, 2.4], lens: 20, dens: 2.4, ev: 0.55 },
   { p: [-5.8, 3.7, 1.7], look: [0.0, 1.5, 2.0], lens: 21, dens: 2.4, ev: 0.6 },
   { p: [-4.4, 4.8, 1.68], look: [3.0, 4.4, 1.8], lens: 22, dens: 2.6, ev: 0.7 },
   { p: [-3.15, 4.8, 1.66], look: [4.0, 4.4, 1.7], lens: 22, dens: 2.8, ev: 0.8 },
-  { p: [0.0, 4.5, 1.64], look: [5.0, 4.3, 1.7], lens: 22, dens: 2.8, ev: 0.85 },
+  // across the hall to the foot of the stair, and up the sixteen treads
+  { p: [-0.4, 4.75, 1.66], look: [3.2, 7.4, 2.5], lens: 22, dens: 1.6, ev: 0.8 },
+  { p: [1.85, 5.0, 1.7], look: [2.15, 9.5, 3.7], lens: 22, dens: 1.2, ev: 0.85 },
+  { p: [2.1, 6.6, 2.66], look: [2.1, 10.6, 4.4], lens: 22, dens: 1.1, ev: 0.85 },
+  { p: [2.1, 8.4, 4.01], look: [2.0, 12.4, 5.3], lens: 22, dens: 1.1, ev: 0.85 },
+  { p: [2.05, 10.15, 5.32], look: [3.8, 12.6, 5.35], lens: 22, dens: 1.1, ev: 0.85 },
+  // the landing, then through the doorway into the gallery: walnut to the right, forest to the left
+  { p: [2.05, 11.3, 5.33], look: [8.0, 11.85, 5.2], lens: 22, dens: 1.3, ev: 0.9 },
+  { p: [3.5, 11.78, 5.33], look: [16.0, 11.85, 5.0], lens: 22, dens: 1.8, ev: 0.9, chapter: "gallery" },
+  { p: [5.5, 11.8, 5.33], look: [13.5, 11.4, 5.0], lens: 22, dens: 1.5, ev: 0.9 },
+  // the west suite: right through its doorway and down the walnut dressing passage
+  { p: [7.05, 11.3, 5.33], look: [7.4, 5.5, 4.9], lens: 22, dens: 1.1, ev: 0.9 },
+  { p: [7.35, 9.4, 5.33], look: [7.0, 4.0, 4.95], lens: 22, dens: 1.1, ev: 0.9 },
+  // the room opens with the bed to the right; keep it in view, then pan left to the lake and hold
+  { p: [7.3, 5.0, 5.33], look: [4.0, 2.6, 4.45], lens: 22, dens: 1.4, ev: 0.9, chapter: "west" },
+  { p: [6.5, 1.2, 5.32], look: [3.6, 4.2, 4.4], lens: 22, dens: 1.6, ev: 0.9 },
+  // (far enough back, ~2.7 m, that the sill, the head of the window and the sheers frame the lake)
+  { p: [5.65, 1.1, 5.32], look: [5.0, -12.0, 4.3], lens: 24, dens: 1.6, ev: 0.9 },
+  { p: [5.8, 0.65, 5.32], look: [5.9, -12.0, 4.25], lens: 24, dens: 2.0, ev: 0.9 },
+  // turn back by the painting on the east wall, out through the passage, right along the gallery
+  { p: [6.35, 0.55, 5.32], look: [9.0, 1.2, 4.85], lens: 22, dens: 0.9, ev: 0.9 },
+  { p: [7.35, 4.4, 5.33], look: [7.45, 9.0, 5.2], lens: 22, dens: 0.7, ev: 0.9 },
+  { p: [7.35, 8.8, 5.33], look: [7.6, 12.5, 5.2], lens: 22, dens: 0.7, ev: 0.9 },
+  { p: [7.4, 10.95, 5.33], look: [12.0, 12.2, 5.15], lens: 22, dens: 0.7, ev: 0.9 },
+  { p: [9.2, 11.8, 5.33], look: [16.0, 11.6, 5.05], lens: 22, dens: 0.8, ev: 0.9 },
+  // the bunk room: in at its doorway and down the lobby beside the shower room
+  { p: [11.35, 11.4, 5.33], look: [11.75, 6.0, 5.0], lens: 22, dens: 1.0, ev: 0.9 },
+  { p: [11.62, 9.8, 5.33], look: [11.3, 4.0, 5.0], lens: 22, dens: 1.1, ev: 0.9 },
+  // the room opens to the right: four bunks in limed oak, paper lanterns, the lake at the end
+  { p: [11.7, 6.6, 5.33], look: [9.0, 3.3, 4.85], lens: 22, dens: 1.5, ev: 0.95, chapter: "bunk" },
+  { p: [11.75, 3.6, 5.33], look: [8.9, 2.4, 4.9], lens: 21, dens: 1.6, ev: 0.95 },
+  // to the window seat, then turn round past the bunks to look back up the length of the room
+  { p: [11.45, 0.7, 5.33], look: [9.9, -8.0, 4.4], lens: 24, dens: 1.6, ev: 0.95 },
+  { p: [11.05, 0.05, 5.33], look: [8.0, 1.6, 4.8], lens: 22, dens: 1.3, ev: 0.95 },
+  { p: [10.95, -0.25, 5.33], look: [9.7, 6.6, 5.15], lens: 21, dens: 1.8, ev: 0.95 },
+  // out again along the east side, and on along the gallery
+  { p: [11.75, 3.4, 5.33], look: [11.7, 9.0, 5.2], lens: 22, dens: 0.7, ev: 0.9 },
+  { p: [11.65, 8.4, 5.33], look: [11.5, 12.5, 5.2], lens: 22, dens: 0.7, ev: 0.9 },
+  { p: [11.75, 10.95, 5.33], look: [17.0, 12.0, 5.1], lens: 22, dens: 0.7, ev: 0.9 },
+  // the principal suite: through the pair of doors into the dressing room, behind the travertine wall
+  { p: [13.6, 11.75, 5.33], look: [16.5, 9.0, 5.05], lens: 22, dens: 0.8, ev: 0.9 },
+  { p: [15.3, 10.9, 5.33], look: [16.2, 6.0, 5.0], lens: 22, dens: 1.0, ev: 0.9 },
+  { p: [15.55, 9.4, 5.33], look: [18.4, 6.3, 4.9], lens: 22, dens: 1.1, ev: 0.9 },
+  { p: [16.7, 7.3, 5.33], look: [19.7, 4.6, 5.0], lens: 22, dens: 1.1, ev: 0.9 },
+  // round the east end of the wall: the room revealed, the lake and the sitting corner, wide
+  { p: [18.85, 5.7, 5.33], look: [19.4, 1.0, 4.8], lens: 22, dens: 1.1, ev: 0.9 },
+  { p: [19.45, 4.1, 5.33], look: [16.8, -3.5, 4.4], lens: 20, dens: 1.8, ev: 0.9, chapter: "principal" },
+  { p: [18.7, 2.5, 5.33], look: [15.4, 4.0, 4.6], lens: 22, dens: 1.5, ev: 0.9 },
+  // the bed from its foot, square on: the travertine wall, the pendants, the cove-lit coffer
+  { p: [16.5, -0.55, 5.33], look: [16.5, 4.6, 4.6], lens: 26, dens: 1.8, ev: 0.9 },
+  { p: [16.45, -0.3, 5.33], look: [16.45, 4.6, 4.6], lens: 26, dens: 2.1, ev: 0.9 },
+  // out round the west end of the wall and back through the dressing room to the doors
+  { p: [14.15, 0.95, 5.33], look: [13.4, 6.0, 5.0], lens: 22, dens: 1.0, ev: 0.9 },
+  { p: [13.5, 3.7, 5.33], look: [13.6, 9.0, 5.1], lens: 22, dens: 0.8, ev: 0.9 },
+  { p: [13.6, 5.9, 5.33], look: [16.0, 9.2, 5.05], lens: 22, dens: 0.8, ev: 0.9 },
+  { p: [14.75, 8.1, 5.33], look: [15.6, 12.2, 5.1], lens: 22, dens: 0.8, ev: 0.9 },
+  { p: [15.35, 10.6, 5.33], look: [10.0, 11.8, 5.05], lens: 22, dens: 0.7, ev: 0.9 },
+  // the length of the gallery back to the landing, the hall's chandelier through the doorway
+  { p: [13.2, 11.75, 5.33], look: [2.0, 11.4, 4.9], lens: 22, dens: 0.7, ev: 0.9 },
+  { p: [7.5, 11.8, 5.33], look: [-1.5, 10.8, 4.8], lens: 22, dens: 0.7, ev: 0.9 },
+  { p: [4.2, 11.7, 5.33], look: [-1.5, 10.6, 4.8], lens: 22, dens: 0.8, ev: 0.9 },
+  // down the stair facing the pivot door, then left through the open bay into the kitchen
+  { p: [2.2, 11.25, 5.33], look: [1.8, 6.0, 4.0], lens: 22, dens: 0.9, ev: 0.85 },
+  { p: [2.12, 10.15, 5.32], look: [2.05, 4.0, 3.0], lens: 22, dens: 1.0, ev: 0.85 },
+  { p: [2.1, 7.6, 3.41], look: [2.3, 2.0, 1.9], lens: 22, dens: 1.1, ev: 0.85 },
+  { p: [2.12, 5.95, 2.17], look: [5.0, 3.9, 1.7], lens: 22, dens: 1.3, ev: 0.9 },
+  { p: [2.35, 4.85, 1.68], look: [7.5, 4.4, 1.55], lens: 22, dens: 1.8, ev: 0.95 },
   { p: [2.85, 4.3, 1.64], look: [8.0, 4.6, 1.5], lens: 22, dens: 2.8, ev: 0.95 },
   { p: [4.4, 4.4, 1.62], look: [8.6, 9.4, 1.1], lens: 22, dens: 2.6, ev: 1.0, chapter: "kitchen" },
   { p: [6.0, 4.9, 1.64], look: [9.6, 9.8, 1.15], lens: 22, dens: 2.4, ev: 1.0 },
@@ -173,7 +248,7 @@ export class CameraPath {
     return this.ts[lo] + f * (this.ts[hi] - this.ts[lo]);
   }
 
-  /** Scroll progress at which the camera reaches key i. */
+  /** Scroll progress at which the camera reaches key i (fractional i: between keys). */
   qOfKey(i: number) {
     const k = Math.round((i / (this.keys.length - 1)) * SAMPLES);
     return this.ss[k] / this.ss[SAMPLES];

@@ -8,19 +8,28 @@ import DossierCover from "@/components/dossier/DossierCover";
 import { CameraPath } from "./path";
 import type { FrameStats, RealtimeEngine } from "./engine";
 
-/** Scroll length of the whole take, in screen heights. */
-const SCREENS = 24;
-/** The drawing set takes over from the laptop screen over this last stretch of the take. */
-const HANDOFF: [number, number] = [0.972, 0.994];
+/** Scroll length of the whole take, in screen heights (about ten units of path length per screen). */
+const SCREENS = 44;
+/**
+ * The drawing set takes over from the laptop screen over this last stretch of the take,
+ * counted in keys back from the end of the path (the final approach to the screen).
+ */
+const HANDOFF_KEYS: [number, number] = [2.64, 1.07];
 
 type Timing = Record<string, { stop: number; win: [number, number] }>;
 
+/** Scroll progress over which the drawing set takes over. */
+function handoffRange(path: CameraPath): [number, number] {
+  const last = path.keys.length - 1;
+  return [path.qOfKey(last - HANDOFF_KEYS[0]), path.qOfKey(last - HANDOFF_KEYS[1])];
+}
+
 /** Where each chapter card shows (in scroll progress), from the chapter keys on the camera path. */
-function chapterTiming(path: CameraPath): Timing {
+function chapterTiming(path: CameraPath, handoff: [number, number]): Timing {
   const at = path.keys.map((k, i) => ({ id: k.chapter, q: path.qOfKey(i) })).filter((c) => c.id) as { id: string; q: number }[];
   const out: Timing = {};
   at.forEach((c, i) => {
-    const next = at[i + 1]?.q ?? HANDOFF[0];
+    const next = at[i + 1]?.q ?? handoff[0];
     out[c.id] = { stop: c.q, win: [c.q + (i === 0 ? 0.03 : 0.004), Math.min(next - 0.01, c.q + 0.075)] };
   });
   return out;
@@ -52,12 +61,15 @@ export default function Walkthrough() {
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [active, setActive] = useState(0);
+  /** per route stop: its label below the line (0), above it (1), or only when current (2) */
+  const [rows, setRows] = useState<number[]>([]);
 
   const path = useMemo(() => new CameraPath(), []);
-  const timing = useMemo(() => chapterTiming(path), [path]);
+  const handoff = useMemo(() => handoffRange(path), [path]);
+  const timing = useMemo(() => chapterTiming(path, handoff), [path, handoff]);
   const stops = useMemo(
-    () => CHAPTERS.map((c) => ({ label: c.stop, q: timing[c.id]?.stop ?? 0 })).concat([{ label: "Drawings", q: (HANDOFF[0] + HANDOFF[1]) / 2 }]),
-    [timing],
+    () => CHAPTERS.map((c) => ({ label: c.stop, q: timing[c.id]?.stop ?? 0 })).concat([{ label: "Drawings", q: (handoff[0] + handoff[1]) / 2 }]),
+    [timing, handoff],
   );
 
   const jump = (q: number) => {
@@ -108,17 +120,17 @@ export default function Walkthrough() {
         });
       });
       if (routeRef.current) {
-        const o = smooth(0.03, 0.045, q) * (1 - smooth(HANDOFF[0] - 0.02, HANDOFF[0], q));
+        const o = smooth(0.03, 0.045, q) * (1 - smooth(handoff[0] - 0.02, handoff[0], q));
         routeRef.current.style.opacity = o.toFixed(3);
         routeRef.current.style.visibility = o > 0.001 ? "visible" : "hidden";
       }
       if (progressRef.current) progressRef.current.style.transform = `scaleX(${q.toFixed(4)})`;
       if (coverRef.current) {
-        const o = smooth(HANDOFF[0], HANDOFF[1], q);
+        const o = smooth(handoff[0], handoff[1], q);
         coverRef.current.style.opacity = o.toFixed(3);
         coverRef.current.style.visibility = o > 0.001 ? "visible" : "hidden";
       }
-      section.dataset.theme = q > (HANDOFF[0] + HANDOFF[1]) / 2 ? "light" : "dark";
+      section.dataset.theme = q > (handoff[0] + handoff[1]) / 2 ? "light" : "dark";
       let idx = 0;
       stops.forEach((s, i) => {
         if (q >= s.q - 0.002) idx = i;
@@ -195,7 +207,34 @@ export default function Walkthrough() {
       window.removeEventListener("halcyon:walk", onWalk);
       engine?.dispose();
     };
-  }, [timing, stops]);
+  }, [timing, stops, handoff]);
+
+  // where stops crowd each other on the route line, a label goes above the line; where both rows
+  // are taken it shows only while its stop is current or hovered
+  useEffect(() => {
+    const nav = routeRef.current;
+    if (!nav) return;
+    const place = () => {
+      const width = nav.firstElementChild?.getBoundingClientRect().width ?? 0;
+      const right = [-Infinity, -Infinity];
+      const next = stops.map((s, i) => {
+        const half = (nav.querySelector<HTMLElement>(`[data-stop="${i}"]`)?.offsetWidth ?? 0) / 2;
+        const x = s.q * width;
+        for (let r = 0; r < 2; r++) {
+          if (x - half >= right[r] + 8) {
+            right[r] = x + half;
+            return r;
+          }
+        }
+        return 2;
+      });
+      setRows((prev) => (prev.length === next.length && prev.every((v, i) => v === next[i]) ? prev : next));
+    };
+    place();
+    document.fonts.ready.then(place);
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [stops]);
 
   // entrance once the house is ready: the loader wipes up, the opening copy settles in
   useEffect(() => {
@@ -223,7 +262,7 @@ export default function Walkthrough() {
         <canvas
           ref={canvasRef}
           role="img"
-          aria-label="The house drawn live as you scroll: across the lake, through the pivot door, the arrival hall, great room, kitchen and study."
+          aria-label="The house drawn live as you scroll: across the lake, through the pivot door, the arrival hall and great room, up the stair to the bedroom gallery, the west suite, the bunk room and the principal suite, then the kitchen and study."
           className="absolute inset-0 block h-full w-full"
         />
         <span ref={fontProbeRef} className="font-wide pointer-events-none absolute opacity-0" aria-hidden>
@@ -309,8 +348,11 @@ export default function Walkthrough() {
               >
                 <span className={`block h-2 w-2 rounded-full border transition-colors duration-300 ${active >= i ? "border-glow bg-glow" : "border-limestone/50 bg-ink"}`} />
                 <span
-                  className={`font-semi absolute left-1/2 top-5 -translate-x-1/2 whitespace-nowrap text-[0.72rem] transition-opacity duration-300 ${
-                    active === i ? "text-[#efe9de] opacity-100" : "text-haze opacity-0 md:opacity-70 md:group-hover:opacity-100"
+                  data-stop={i}
+                  className={`font-semi absolute left-1/2 ${rows[i] === 1 ? "bottom-5" : "top-5"} -translate-x-1/2 whitespace-nowrap text-[0.72rem] transition-opacity duration-300 ${
+                    active === i
+                      ? "text-[#efe9de] opacity-100"
+                      : `text-haze opacity-0 ${rows[i] === 2 ? "" : "md:opacity-70"} md:group-hover:opacity-100`
                   }`}
                 >
                   {s.label}

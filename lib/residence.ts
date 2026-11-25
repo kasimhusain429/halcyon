@@ -8,7 +8,7 @@ export type ShotId = "arrival" | "great" | "kitchen" | "study";
 export type Fact = { term: string; value: string };
 
 export type Chapter = {
-  id: ShotId | "threshold" | "aerial";
+  id: ShotId | "threshold" | "aerial" | "gallery" | "west" | "bunk" | "principal";
   stop: string; // short name on the route line
   title: string;
   body: string;
@@ -67,6 +67,50 @@ export const CHAPTERS: Chapter[] = [
       { term: "Area", value: "152 m²" },
       { term: "Ridge height", value: "10.4 m" },
       { term: "Glazed gable", value: "62 m²" },
+    ],
+  },
+  {
+    id: "gallery",
+    stop: "Gallery",
+    title: "The bedroom gallery",
+    body: "The stair arrives at a gallery that runs the length of the timber wing: walnut on one side, three windows onto the forest on the other, an olive tree at the far end.",
+    facts: [
+      { term: "Length", value: "17.4 m" },
+      { term: "Ceiling", value: "2.9 m" },
+      { term: "Rooms", value: "3, facing the lake" },
+    ],
+  },
+  {
+    id: "west",
+    stop: "West suite",
+    title: "The west suite",
+    body: "A passage of walnut wardrobes opens into the bedroom. The bed stands against the walnut wall, and the ribbon window runs the width of the room, over the lake.",
+    facts: [
+      { term: "Suite", value: "67 m²" },
+      { term: "Bedroom", value: "36 m²" },
+      { term: "Window", value: "4.1 × 2.1 m" },
+    ],
+  },
+  {
+    id: "bunk",
+    stop: "Bunk room",
+    title: "The bunk room",
+    body: "Long and narrow under a lowered ceiling of white oak boards: four built-in bunks along one wall, paper lanterns over a round rug, and a window seat where the room meets the lake.",
+    facts: [
+      { term: "Beds", value: "4, built in" },
+      { term: "Room", value: "4.0 × 12.3 m" },
+      { term: "Ceiling", value: "2.7 m, oak boards" },
+    ],
+  },
+  {
+    id: "principal",
+    stop: "Principal",
+    title: "The principal suite",
+    body: "A freestanding wall of travertine carries the bed and hides the dressing room behind it. Over the bed the ceiling lifts into a cove-lit coffer; two chairs wait by the east window.",
+    facts: [
+      { term: "Suite", value: "93 m²" },
+      { term: "Ceiling", value: "3.2 m, coffered" },
+      { term: "Windows", value: "Lake and forest" },
     ],
   },
   {

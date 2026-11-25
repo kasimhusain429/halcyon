@@ -2,10 +2,13 @@
 
 Usage (Blender Python console / MCP):
     exec(open(r"<repo>/blender/build.py").read())
+or headless:
+    blender -b -P blender/build.py
 """
-import sys, importlib, bpy
+import os, sys, importlib, bpy
 
-ROOT = r"C:\Users\Admin\Desktop\Project\construction\blender"
+# exec() leaves __file__ unset: fall back to the repo's blender folder
+ROOT = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else r"C:\Users\Admin\Desktop\Project\halcyon\blender"
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 

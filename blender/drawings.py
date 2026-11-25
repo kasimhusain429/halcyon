@@ -124,6 +124,8 @@ def cut_loops(plane_co, plane_no, uv):
                 continue
             if cname == 'Interior' and not ob.name.startswith(('GR_breast', 'GR_hearth', 'KT_tall', 'KT_island', 'KT_base', 'ST_lib', 'UP_bed')):
                 continue
+            if ob.name == 'C_up1_block':  # wardrobe joinery, not wall: leave it out of the cut
+                continue
             bb = world_bbox(ob)
             ds = [(p - pc).dot(pn) for p in bb]
             if not (min(ds) < 0 < max(ds)):
@@ -163,7 +165,8 @@ def cut_loops(plane_co, plane_no, uv):
 
 def section():
     ew = cut_loops((0, 7.0, 0), (0, 1, 0), lambda v: (v.x, v.z))
-    ns = cut_loops((8.5, 0, 0), (1, 0, 0), lambda v: (v.y, v.z))
+    # (not 8.5: the bunk room's partition face lies on that plane, and a cut along a face fills it in)
+    ns = cut_loops((9.0, 0, 0), (1, 0, 0), lambda v: (v.y, v.z))
     data = dict(ew=dict(loops=ew, water=-2.2, bounds=[-19.5, -3.2, 43.0, 15.6]),
                 ns=dict(loops=ns, water=-2.2, bounds=[-16.0, -3.2, 31.0, 11.6]))
     with open(os.path.join(LIB, 'section.json'), 'w') as fh:

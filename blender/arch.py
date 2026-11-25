@@ -185,6 +185,26 @@ def build_pavilion(c):
 # ---------------------------------------------------------------- volume B (arrival core)
 BX0, BX1, BY0, BY1, BH = -3.0, 3.0, 2.0, 14.0, 7.4
 UPPER = 3.7  # upper floor level
+# upper floor (first floor) of the east wing:
+#   gallery     along the north wall, y[GAL_Y + 0.2, 13.18], entered from the landing
+#   three rooms to the south, each looking at the lake through the ribbon window, each its own size:
+#     west suite    x[2.82, 8.3]   walnut dressing block x[2.82, 6.5] y[4.6, 10.3], passage beside it
+#     bunk room     x[8.5, 12.5]   long and narrow, lowered oak-board ceiling; shower room in the north-west
+#     principal     x[12.7, 20.28] raised coffer over the bed, freestanding travertine bed wall,
+#                                  dressing room behind it, bathroom in the north-east corner
+#   the partitions stand on the ribbon window's mullions, so every room has whole panes
+LANDING_DOOR = (10.8, 12.6, 2.5)        # y0, y1, height: the landing's doorway into the gallery
+GAL_Y = 10.3                            # south face of the gallery wall (it is 0.2 thick)
+GAL_DOORS = ((6.75, 7.85, 2.3),         # x0, x1, height: west suite (pocket door)
+             (11.1, 12.1, 2.3),         # bunk room (pocket door)
+             (14.6, 16.2, 2.4))         # principal suite (a pair of doors, standing open)
+GAL_DOOR = GAL_DOORS[0]
+GAL_WINDOWS = ((5.0, 7.2), (10.6, 12.8), (16.2, 18.4))  # north windows, x ranges
+PARTITIONS = (8.4, 12.6)                # centre lines (0.2 thick), on the ribbon's mullions
+SUITE_BLOCK = (2.82, 6.5, 4.6)          # west suite dressing block: x0, x1, y0 (it runs to GAL_Y)
+BUNK_BATH = (8.5, 10.8, 6.6, (8.75, 9.6))       # x0, x1, y0 (to GAL_Y), door y range on its east wall
+PRINCIPAL_BATH = (17.8, 20.28, 7.2, (8.5, 9.4))  # x0, x1, y0 (to GAL_Y), door y range on its west wall
+COFFER = (13.9, 19.2, -0.9, 4.2, 0.35)  # x0, x1, y0, y1, depth: raised ceiling over the principal bed
 
 def build_core(c):
     box('B_slab', BX0, BX1, BY0, BY1, -0.45, -0.03, M('concrete'), c, 0)
@@ -204,8 +224,12 @@ def build_core(c):
     g = vplane('B_transom_glass', (door_w0 - 0.05, BY0 + 0.12), (door_w1 + 0.05, BY0 + 0.12), 3.62, 6.4, M('glass'), c)
     # side walls
     box('C_wallW_front', BX1, BX1 + 0.3, AY0 + 0.1, BY0 + 0.16, -0.4, 3.32, M('stone_ext'), c, 0.01)
-    wall('B_wallE', 'Y', BX1 - 0.3, 0.3, BY0 + 0.16, BY1, 0, 7.0, M('plaster'), c,
+    # ground: the open bay to the kitchen; upper: thinner (the wing's rooms start at x 2.82),
+    # with the landing's doorway into the bedroom gallery
+    wall('B_wallE', 'Y', BX1 - 0.3, 0.3, BY0 + 0.16, BY1, 0, UPPER, M('plaster'), c,
          openings=[(3.4, 5.2, 0, 3.0)])
+    wall('B_wallE_up', 'Y', BX1 - 0.3, 0.12, BY0 + 0.16, BY1, UPPER, 7.0, M('plaster'), c,
+         openings=[(LANDING_DOOR[0], LANDING_DOOR[1], UPPER, UPPER + LANDING_DOOR[2])])
     wall('B_wallW_out', 'Y', BX0, 0.12, BY0, AY1, 6.2, BH, M('stone_ext'), c)
     box('B_wallW_lining', BX0 + 0.12, BX0 + 0.3, BY0 + 0.34, BY1 - 0.3, 6.2, 7.0, M('plaster'), c, 0)
     box('B_wallW_front', BX0, BX0 + 0.16, AY0 + 0.3, BY0, -0.4, EAVE + 0.15, M('stone_ext'), c, 0.01)
@@ -287,17 +311,51 @@ def build_wing(c):
     rib = (ux0 + 1.6, ux1 - 1.6, UF0 + 0.55, UF1 - 0.25)
     wall('C_upS', 'X', uy0, 0.22, ux0, ux1, UF0, UF1 + 0.45, M('charred'), c, openings=[(rib[0], rib[1], rib[2], rib[3])])
     glazing('C_ribbon', 'X', uy0 + 0.12, rib[0], rib[1], rib[2], rib[3], c, mull=2.2, mw=0.06)
-    wall('C_upE', 'Y', ux1 - 0.22, 0.22, uy0, uy1, UF0, UF1 + 0.45, M('charred'), c, openings=[(1.0, 4.0, UF0 + 0.55, UF1 - 0.25)])
+    east_ops = [(1.0, 4.0, UF0 + 0.55, UF1 - 0.25), (10.85, 12.85, UF0 + 0.3, UF1 - 0.25)]
+    wall('C_upE', 'Y', ux1 - 0.22, 0.22, uy0, uy1, UF0, UF1 + 0.45, M('charred'), c, openings=east_ops)
     glazing('C_upE_win', 'Y', ux1 - 0.1, 1.0, 4.0, UF0 + 0.55, UF1 - 0.25, c, mull=1.0)
-    wall('C_upW', 'Y', ux0, 0.22, uy0, uy1, UF0, UF1 + 0.45, M('charred'), c)
-    wall('C_upN', 'X', uy1 - 0.22, 0.22, ux0, ux1, UF0, UF1 + 0.45, M('charred'), c)
+    glazing('C_upE_gal', 'Y', ux1 - 0.1, 10.85, 12.85, UF0 + 0.3, UF1 - 0.25, c, mull=1.0)
+    west_ops = [(LANDING_DOOR[0], LANDING_DOOR[1], UF0, UF0 + LANDING_DOOR[2])]
+    wall('C_upW', 'Y', ux0, 0.22, uy0, uy1, UF0, UF1 + 0.45, M('charred'), c, openings=west_ops)
+    north_ops = [(x0, x1, UF0 + 0.55, UF1 - 0.25) for x0, x1 in GAL_WINDOWS]
+    wall('C_upN', 'X', uy1 - 0.22, 0.22, ux0, ux1, UF0, UF1 + 0.45, M('charred'), c, openings=north_ops)
+    for k, (x0, x1) in enumerate(GAL_WINDOWS):
+        glazing(f'C_upN_win{k}', 'X', uy1 - 0.1, x0, x1, UF0 + 0.55, UF1 - 0.25, c, mull=2.2)
     box('C_roof', ux0 - 0.05, ux1 + 0.05, uy0 - 0.05, uy1 + 0.05, UF1 + 0.45, UF1 + 0.62, M('metal_dark'), c, 0.01)
-    box('C_roofin', ux0 + 0.22, ux1 - 0.22, uy0 + 0.22, uy1 - 0.22, UF1, UF1 + 0.45, M('plaster'), c, 0)
-    box('C_upfloor', ux0 + 0.22, ux1 - 0.22, uy0 + 0.22, uy1 - 0.22, UF0, UF0 + 0.02, M('oak_floor'), c, 0)
-    # interior partition walls upstairs (rooms read through the ribbon window)
-    for k, x in enumerate((8.2, 13.6)):
-        box(f'C_upPart{k}', x - 0.1, x + 0.1, uy0 + 0.22, uy1 - 0.22, UF0, UF1, M('plaster_warm'), c, 0)
-    box('C_upCorr', ux0 + 0.22, ux1 - 0.22, 6.0, 6.2, UF0, UF1, M('plaster_warm'), c, 0)
+    ix0, ix1, iy0, iy1 = ux0 + 0.22, ux1 - 0.22, uy0 + 0.22, uy1 - 0.22
+    # ceiling, with the principal suite's coffer raised into the roof build-up
+    cx0, cx1, cy0, cy1, cd = COFFER
+    for k, (a0, a1, b0, b1) in enumerate(((ix0, cx0, iy0, iy1), (cx1, ix1, iy0, iy1), (cx0, cx1, iy0, cy0), (cx0, cx1, cy1, iy1))):
+        box(f'C_roofin{k}', a0, a1, b0, b1, UF1, UF1 + 0.45, M('plaster'), c, 0)
+    box('C_roofin_coffer', cx0, cx1, cy0, cy1, UF1 + cd, UF1 + 0.45, M('plaster'), c, 0)
+    box('C_upfloor', ix0, ix1, iy0, iy1, UF0, UF0 + 0.02, M('oak_floor'), c, 0)
+    # warm plaster lining inside the timber shell
+    pw = M('plaster_warm')
+    wall('C_upS_in', 'X', iy0, 0.02, ix0, ix1, UF0, UF1, pw, c, openings=[rib], bev=0.002)
+    wall('C_upN_in', 'X', iy1, -0.02, ix0, ix1, UF0, UF1, pw, c, openings=north_ops, bev=0.002)
+    wall('C_upE_in', 'Y', ix1, -0.02, iy0, iy1, UF0, UF1, pw, c, openings=east_ops, bev=0.002)
+    wall('C_upW_in', 'Y', ix0, 0.02, iy0, iy1, UF0, UF1, pw, c, openings=west_ops, bev=0.002)
+    # pier over the end of the core's stone front wall, which runs through to x 3.0
+    box('C_upPier', ix0, BX1 + 0.02, BY0 - 0.03, BY0 + 0.19, UF0, UF1, pw, c, 0.004)
+    # oak threshold in the landing doorway
+    box('C_upThreshold', BX1 - 0.3, ix0, LANDING_DOOR[0], LANDING_DOOR[1], UF0, UF0 + 0.02, M('oak_floor'), c, 0)
+    # the gallery wall: the three rooms open off it
+    wall('C_upGal', 'X', GAL_Y, 0.2, ix0, ix1, UF0, UF1, pw, c,
+         openings=[(d0, d1, UF0, UF0 + h) for d0, d1, h in GAL_DOORS], bev=0.003)
+    # partitions between the rooms
+    for k, x in enumerate(PARTITIONS):
+        box(f'C_upPart{k}', x - 0.1, x + 0.1, iy0, GAL_Y, UF0, UF1, pw, c, 0)
+    # west suite: walnut dressing block (wardrobes to the passage, the bed wall to the room)
+    bx0, bx1, by0 = SUITE_BLOCK
+    box('C_up1_block', bx0, bx1, by0, GAL_Y, UF0 + 0.02, UF1, M('walnut_panel'), c, 0.004)
+    # bunk room: shower room in the north-west corner, its door facing the entrance lobby
+    sx0, sx1, sy0, (dy0, dy1) = BUNK_BATH
+    box('C_up2_bathS', sx0, sx1, sy0, sy0 + 0.1, UF0, UF1, pw, c, 0.002)
+    wall('C_up2_bathE', 'Y', sx1 - 0.1, 0.1, sy0 + 0.1, GAL_Y, UF0, UF1, pw, c, openings=[(dy0, dy1, UF0, UF0 + 2.1)], bev=0.002)
+    # principal suite: bathroom in the north-east corner, its door facing the dressing room
+    px0, px1, py0, (dy0, dy1) = PRINCIPAL_BATH
+    box('C_up3_bathS', px0, px1, py0, py0 + 0.1, UF0, UF1, pw, c, 0.002)
+    wall('C_up3_bathW', 'Y', px0, 0.1, py0 + 0.1, GAL_Y, UF0, UF1, pw, c, openings=[(dy0, dy1, UF0, UF0 + 2.2)], bev=0.002)
 
 # ---------------------------------------------------------------- pivot door (animated in cams.py)
 def build_door(c):

@@ -36,7 +36,7 @@ function SunRay({ deg, label, dashed }: { deg: number; label: string; dashed?: b
 
 /**
  * Sections cut from the model: `ew` is the long section at y = 7 m,
- * `ns` is a cross-section through the kitchen at x = 8.5 m (lake to the left).
+ * `ns` is a cross-section through the kitchen and the bunk room above it at x = 9 m (lake to the left).
  */
 export default function SectionDrawing({ cut = "ew", sun = false }: { cut?: "ew" | "ns"; sun?: boolean }) {
   const S = DATA[cut];

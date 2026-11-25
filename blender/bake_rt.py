@@ -35,7 +35,7 @@ SKIP_COLLS = {'Forest', 'Cameras', 'RT'}
 # metres per texel: (colour, light)
 DENSITY = {'A_Architecture_int': (0.02, 0.04), 'A_Architecture_ext': (0.025, 0.09),
            'A_Arrival': (0.015, 0.03), 'A_Great_Room': (0.015, 0.03), 'A_Kitchen': (0.015, 0.03),
-           'A_Study': (0.012, 0.03), 'A_Upper': (0.05, 0.1), 'A_Hardscape': (0.03, 0.06), 'A_Door': (0.01, 0.03)}
+           'A_Study': (0.012, 0.03), 'A_Upper': (0.015, 0.03), 'A_Hardscape': (0.03, 0.06), 'A_Door': (0.01, 0.03)}
 MAX_ATLAS = 4096
 LIGHT_SPP = 96
 VERTEX_SPP = 64
@@ -432,8 +432,12 @@ def stage_export():
     scene['atlases'] = {n: dict(color=f'{n}_color.webp', light=f'{n}_light.webp', size=[a['color'], a['light']])
                         for n, a in meta['atlases'].items()}
     scene['objects'] = made
+    # the browser requests the model and every texture with this stamp: a new export never meets
+    # cached files from an older one (their UVs differ after every prep)
+    scene['build'] = time.strftime('%Y%m%d%H%M%S')
     with open(os.path.join(OUT, 'scene.json'), 'w') as fh:
         json.dump(scene, fh, separators=(',', ':'))
     log('EXPORT_DONE', round(os.path.getsize(os.path.join(OUT, 'halcyon.glb')) / 1e6, 2), 'MB')
 
-{'prep': stage_prep, 'bake': stage_bake, 'export': stage_export}[STAGE]()
+if __name__ == '__main__':  # check_route.py imports partition_glass from here
+    {'prep': stage_prep, 'bake': stage_bake, 'export': stage_export}[STAGE]()

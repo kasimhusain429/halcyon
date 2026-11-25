@@ -197,6 +197,65 @@ def floor_lamp_arc(name, c, loc, rz, lc):
     s.rotation_euler = (0, 0, 0)
     return g
 
+def tub_chair(name, c, loc, rz, fabric, base=None):
+    """Upholstered tub chair on a bronze disc: a round seat inside a back that wraps 240 degrees.
+    Faces -Y before rotation, like lounge_chair."""
+    g = grp(name, loc, rz, c)
+    base = base or M('metal_dark')
+    par(cyl(f'{name}_base', 0.22, 0.03, (0, 0, 0.015), base, c, 40, bev=0.004), g)
+    par(cyl(f'{name}_stem', 0.03, 0.16, (0, 0, 0.11), base, c, 16, bev=0), g)
+    par(cyl(f'{name}_seat', 0.36, 0.2, (0, 0, 0.29), fabric, c, 48, bev=0.03), g)
+    n, verts, faces = 24, [], []
+    for i in range(n + 1):
+        a = math.radians(-30 + 240 * i / n)  # from the right side, round the back (+Y), to the left
+        for (r, z) in ((0.27, 0.3), (0.4, 0.3), (0.4, 0.72), (0.27, 0.72)):
+            verts.append((r * math.cos(a), r * math.sin(a), z))
+    for i in range(n):
+        for k in range(4):
+            a0, a1 = i * 4 + k, i * 4 + (k + 1) % 4
+            faces.append((a0, a1, a1 + 4, a0 + 4))
+    faces += [(0, 3, 2, 1), (n * 4, n * 4 + 1, n * 4 + 2, n * 4 + 3)]
+    back = mesh_obj(f'{name}_back', verts, faces, c, fabric, True)
+    bm = bmesh.new()
+    bm.from_mesh(back.data)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(back.data)
+    bm.free()
+    bevel(back, 0.03, 3)
+    par(back, g)
+    return g
+
+def globe_pendant(name, c, loc, ceiling, lc, r=0.085, power=10):
+    """Opal glass globe with a bronze cap, hung on a cable from the ceiling (loc: globe centre)."""
+    x, y, z = loc
+    s = sphere(f'{name}_globe', r, loc, M('warm_soft'), c, 3)
+    s.visible_shadow = False  # the bulb inside lights the room through it
+    cyl(f'{name}_cap', 0.03, 0.05, (x, y, z + r + 0.012), M('metal_dark'), c, 24, bev=0.003)
+    drop = ceiling - (z + r + 0.037)
+    cyl(f'{name}_cable', 0.004, drop, (x, y, z + r + 0.037 + drop / 2), M('metal_dark'), c, 8, bev=0)
+    point(f'{name}_light', loc, power, 2700, lc, r * 0.7)
+
+def paper_lantern(name, c, loc, ceiling, lc, r, power=22):
+    """Round paper lantern on a cord: glowing paper, a brass ring at the top."""
+    x, y, z = loc
+    s = sphere(f'{name}_paper', r, loc, M('emit_paper'), c, 3)
+    s.visible_shadow = False
+    cyl(f'{name}_ring', r * 0.34, 0.02, (x, y, z + r * 0.94), M('brass'), c, 24, bev=0)
+    drop = ceiling - (z + r)
+    cyl(f'{name}_cord', 0.003, drop, (x, y, z + r + drop / 2), M('black_plastic'), c, 6, bev=0)
+    point(f'{name}_light', loc, power, 2700, lc, r * 0.6)
+
+def drum_floor_lamp(name, c, loc, lc, power=30):
+    """Bronze stem, linen drum shade."""
+    g = grp(name, loc, 0, c)
+    par(cyl(f'{name}_base', 0.16, 0.025, (0, 0, 0.0125), M('metal_dark'), c, 40, bev=0.004), g)
+    par(cyl(f'{name}_stem', 0.011, 1.2, (0, 0, 0.62), M('metal_dark'), c, 12, bev=0), g)
+    sh = lathe(f'{name}_shade', [(0.23, 1.18), (0.23, 1.52)], c, M('shade_linen'), 48, cap=False)
+    sh.modifiers.new('Solid', 'SOLIDIFY').thickness = 0.004
+    par(sh, g)
+    par(point(f'{name}_bulb', (0, 0, 1.36), power, 2700, lc, 0.06), g)
+    return g
+
 def olive_tree(name, c, loc, h=2.6, planter=True, seed=1, leafmat=None):
     rr = random.Random(seed)
     g = grp(name, loc, rr.uniform(0, 6.28), c)
@@ -625,19 +684,323 @@ def study(c, lc):
     area('ST_fill', (16.4, 6.5, 3.2), 3.5, 140, 3200, lc, size_y=11.0, glossy=False)
     area('ST_bounce', (16.4, 6.5, 1.0), 3.5, 110, 3200, lc, rot=(math.pi, 0, 0), size_y=11.0, glossy=False)
 
+def upper_gallery(c, lc):
+    """The bedroom gallery along the north wall of the wing, entered from the stair landing."""
+    f0, f1 = arch.UF0 + 0.02, arch.UF1        # finished floor, ceiling
+    gy0, gy1 = arch.GAL_Y + 0.2, 13.16         # gallery wall face, north lining face
+    gx0, gx1 = 2.84, 20.26
+    gm = (gy0 + gy1) / 2
+    # walnut panelling on the gallery wall, full height, opening into the three rooms
+    arch.wall('UPG_walnut', 'X', gy0, 0.03, gx0, gx1, f0, f1, M('walnut_panel'), c,
+              openings=[(d0, d1, f0, f0 + dh) for d0, d1, dh in arch.GAL_DOORS], bev=0.002)
+    # walnut linings in the doorways
+    for n, (d0, d1, dh) in enumerate(arch.GAL_DOORS):
+        for k, x in enumerate((d0, d1 - 0.02)):
+            box(f'UPG_jamb{n}{k}', x, x + 0.02, arch.GAL_Y - 0.01, gy0 + 0.03, f0, f0 + dh, M('walnut'), c, 0.002)
+        box(f'UPG_head{n}', d0, d1, arch.GAL_Y - 0.01, gy0 + 0.03, f0 + dh - 0.02, f0 + dh, M('walnut'), c, 0.002)
+    # art between the north windows, a bench under the middle one, an olive tree at the east end
+    for k, (x, mat) in enumerate(((8.9, 'art1'), (14.5, 'art3'))):
+        cbox(f'UPG_art{k}', (1.5, 0.04, 1.05), (x, gy1 - 0.03, f0 + 1.62), M(mat), c, bev=0.004)
+    box('UPG_bench', 10.95, 12.45, 12.72, 13.12, f0 + 0.06, f0 + 0.42, M('walnut'), c, 0.008)
+    box('UPG_bench_plinth', 11.05, 12.35, 12.78, 13.06, f0, f0 + 0.06, M('metal_black'), c, 0.003)
+    box('UPG_cushion', 10.98, 12.42, 12.74, 13.1, f0 + 0.42, f0 + 0.5, M('fabric_sand'), c, 0.03, 3)
+    lathe('UPG_vase', [(0.0, 0.0), (0.07, 0.0), (0.12, 0.1), (0.1, 0.32), (0.05, 0.42), (0.06, 0.46), (0.0, 0.46)], c, M('ceramic'), 40, (12.2, 12.92, f0 + 0.5))
+    olive_tree('UPG_olive', c, (19.5, 12.3, f0), 2.2, seed=41)
+    # light: a slot along the ceiling, washers on the walnut, pictures lit, a soft fill
+    box('UPG_slot', 3.6, 19.6, gm - 0.025, gm + 0.025, f1 - 0.012, f1 - 0.002, M('warm_light'), c, 0)
+    area('UPG_fill', (11.6, gm, f1 - 0.06), 16.0, 230, 2900, lc, size_y=0.5, glossy=False)
+    area('UPG_bounce', (11.6, gm, f0 + 0.7), 16.0, 60, 3000, lc, rot=(math.pi, 0, 0), size_y=2.0, glossy=False)
+    for k, x in enumerate((4.3, 9.6, 13.35, 17.6, 19.6)):
+        spot(f'UPG_wash{k}', (x, gy0 + 0.45, f1 - 0.04), 55, 75, 0.9, 2900, lc, aim=(x, gy0, f0 + 0.8))
+    for k, x in enumerate((8.9, 14.5)):
+        spot(f'UPG_artlight{k}', (x, gy1 - 1.0, f1 - 0.04), 70, 34, 0.6, 3000, lc, aim=(x, gy1, f0 + 1.6))
+    spot('UPG_olive_light', (19.0, 11.6, f1 - 0.04), 60, 45, 0.7, 2900, lc, aim=(19.5, 12.3, f0 + 1.2))
+
+def upper_suite_west(c, lc):
+    """The west suite: walk-in dressing passage beside a walnut block, the bedroom facing the lake."""
+    f0, f1 = arch.UF0 + 0.02, arch.UF1
+    bx0, bx1, by0 = arch.SUITE_BLOCK
+    px1 = arch.PARTITIONS[0] - 0.1              # east partition face (8.3)
+    # wardrobe fronts on the block, facing the passage: shadow gaps and brass pulls
+    ys = [by0 + 0.6 + 0.95 * i for i in range(6)]
+    for i, y in enumerate(ys):
+        box(f'UP1_wr_gap{i}', bx1, bx1 + 0.004, y - 0.003, y + 0.003, f0 + 0.08, f1 - 0.45, M('black_plastic'), c, 0)
+        if i < len(ys) - 1:
+            box(f'UP1_wr_pull{i}', bx1 + 0.004, bx1 + 0.03, y + 0.05, y + 0.07, f0 + 0.7, f0 + 1.6, M('brass'), c, 0.003)
+    box('UP1_wr_top', bx1, bx1 + 0.004, by0 + 0.4, arch.GAL_Y, f1 - 0.453, f1 - 0.447, M('black_plastic'), c, 0)
+    box('UP1_wr_led', bx1 + 0.004, bx1 + 0.012, by0 + 0.4, arch.GAL_Y - 0.1, f1 - 0.02, f1 - 0.01, M('warm_soft'), c, 0)
+    for k, y in enumerate((6.1, 8.6)):
+        spot(f'UP1_pass{k}', (7.4, y, f1 - 0.04), 45, 70, 0.8, 2900, lc, aim=(7.0, y, f0))
+    # the bed against the walnut wall
+    cx = 4.6
+    box('UP1_headboard', cx - 1.25, cx + 1.25, by0 - 0.1, by0, f0 + 0.24, f0 + 1.38, M('fabric_sand'), c, 0.03, 3)
+    box('UP1_bedbase', cx - 1.05, cx + 1.05, 2.3, by0 - 0.1, f0 + 0.06, f0 + 0.28, M('walnut'), c, 0.01)
+    box('UP1_bedplinth', cx - 0.95, cx + 0.95, 2.4, by0 - 0.2, f0, f0 + 0.06, M('black_plastic'), c, 0)
+    box('UP1_mattress', cx - 1.0, cx + 1.0, 2.36, by0 - 0.14, f0 + 0.28, f0 + 0.52, M('fabric_cream'), c, 0.06, 4)
+    box('UP1_throw', cx - 1.03, cx + 1.03, 2.33, 3.05, f0 + 0.5, f0 + 0.56, M('fabric_olive'), c, 0.025, 3)
+    for k, (dx, w, dz, m) in enumerate(((-0.48, 0.78, 0.0, 'fabric_cream'), (0.48, 0.78, 0.0, 'fabric_cream'),
+                                        (-0.42, 0.6, -0.05, 'fabric_sand'), (0.42, 0.6, -0.05, 'fabric_sand'))):
+        y = by0 - 0.3 - (0.16 if k >= 2 else 0.0)
+        cbox(f'UP1_pillow{k}', (w, 0.17, 0.42 + dz), (cx + dx, y, f0 + 0.74 + dz / 2), M(m), c,
+             rot=(math.radians(-12), 0, math.radians(R.uniform(-4, 4))), bev=0.07, seg=4)
+    for k, sx in enumerate((-1, 1)):
+        nx = cx + sx * 1.43
+        box(f'UP1_night{k}', nx - 0.24, nx + 0.24, by0 - 0.5, by0 - 0.04, f0 + 0.12, f0 + 0.55, M('walnut'), c, 0.008)
+        box(f'UP1_night{k}_leg', nx - 0.2, nx + 0.2, by0 - 0.46, by0 - 0.08, f0, f0 + 0.12, M('metal_black'), c, 0.003)
+        table_lamp(f'UP1_lamp{k}', c, (nx, by0 - 0.28, f0 + 0.55), lc, 14)
+    cbox('UP1_book', (0.22, 0.16, 0.03), (cx + 1.38, by0 - 0.3, f0 + 0.565), M('books'), c, rot=(0, 0, 0.3), bev=0.003)
+    # bench at the foot, rug, reading chair by the window, credenza and a painting on the east wall
+    box('UP1_bench_frame', cx - 0.72, cx + 0.72, 1.62, 2.02, f0, f0 + 0.36, M('walnut'), c, 0.008)
+    box('UP1_bench_seat', cx - 0.7, cx + 0.7, 1.64, 2.0, f0 + 0.36, f0 + 0.45, M('leather'), c, 0.03, 3)
+    box('UP1_rug', 3.0, 6.4, 0.9, by0 - 0.12, f0, f0 + 0.015, M('rug'), c, 0.004)
+    lounge_chair('UP1_chair', c, (3.75, -0.55, f0), math.radians(30), M('fabric_olive'))
+    cyl('UP1_side', 0.2, 0.48, (3.2, 0.25, f0 + 0.24), M('marble_dark'), c, 40, bev=0.006)
+    lathe('UP1_cup', [(0.0, 0.0), (0.035, 0.0), (0.042, 0.085), (0.039, 0.085), (0.032, 0.006), (0.0, 0.006)], c, M('ceramic'), 32, (3.15, 0.2, f0 + 0.48))
+    box('UP1_credenza', px1 - 0.46, px1, -0.9, 1.7, f0 + 0.1, f0 + 0.62, M('walnut'), c, 0.008)
+    box('UP1_cred_plinth', px1 - 0.42, px1 - 0.04, -0.85, 1.65, f0, f0 + 0.1, M('metal_black'), c, 0.003)
+    for k in range(1, 3):
+        y = -0.9 + 2.6 * k / 3
+        box(f'UP1_cred_seam{k}', px1 - 0.465, px1 - 0.46, y - 0.003, y + 0.003, f0 + 0.12, f0 + 0.6, M('black_plastic'), c, 0)
+    lathe('UP1_vase', [(0.0, 0.0), (0.1, 0.0), (0.13, 0.06), (0.12, 0.14), (0.0, 0.16)], c, M('ceramic'), 40, (px1 - 0.23, -0.3, f0 + 0.62))
+    lathe('UP1_vase2', [(0.0, 0.0), (0.05, 0.0), (0.09, 0.08), (0.08, 0.22), (0.035, 0.32), (0.04, 0.36), (0.0, 0.36)], c, M('ceramic'), 40, (px1 - 0.25, 1.15, f0 + 0.62))
+    cbox('UP1_art', (0.04, 1.6, 1.1), (px1 - 0.03, 0.4, f0 + 1.65), M('art2'), c, bev=0.004)
+    # sheers drawn back to either end of the window
+    curtain('UP1_sheerW', c, 2.95, 4.05, -1.8, f0 + 0.03, f1 - 0.05, M('sheer'), folds=9, amp=0.06)
+    curtain('UP1_sheerE', c, px1 - 0.75, px1 - 0.1, -1.8, f0 + 0.03, f1 - 0.05, M('sheer'), folds=6, amp=0.06)
+    # light
+    area('UP1_fill', (4.9, 1.3, f1 - 0.06), 3.6, 100, 2800, lc, size_y=4.6, glossy=False)
+    area('UP1_bounce', (4.9, 1.3, f0 + 0.6), 3.6, 45, 3000, lc, rot=(math.pi, 0, 0), size_y=4.6, glossy=False)
+    for k, x in enumerate((cx - 0.7, cx + 0.7)):
+        spot(f'UP1_head_wash{k}', (x, by0 - 0.35, f1 - 0.04), 45, 60, 0.85, 2900, lc, aim=(x, by0, f0 + 0.6))
+    spot('UP1_art_light', (px1 - 1.0, 0.4, f1 - 0.04), 55, 36, 0.6, 3000, lc, aim=(px1, 0.4, f0 + 1.6))
+    spot('UP1_chair_light', (3.6, -0.3, f1 - 0.04), 35, 50, 0.8, 2800, lc, aim=(3.65, -0.45, f0))
+
+def upper_bunk_room(c, lc):
+    """The bunk room: long and narrow (4 x 12 m) under a lowered white-oak board ceiling. Built-in
+    bunks for four along the west wall, a window seat over the lake, a desk wall on the shower room,
+    paper lanterns over a round rug. Limed oak and lake-blue linen."""
+    f0 = arch.UF0 + 0.02
+    x0, x1 = arch.PARTITIONS[0] + 0.1, arch.PARTITIONS[1] - 0.1       # 8.5, 12.5
+    y0 = -1.96                                                         # south lining face
+    sx0, sx1, sy0, (dy0, dy1) = arch.BUNK_BATH
+    cz = 6.46                                                          # lowered ceiling
+    ow, lake, sand, cream = M('oak_white'), M('fabric_lake'), M('fabric_sand'), M('fabric_cream')
+    # the lowered board ceiling, its boards running the length of the room
+    box('UPB_ceiling', x0, x1, y0, arch.GAL_Y, cz, cz + 0.04, M('oak_boards'), c, 0)
+    # shower room door (closed), lobby with coat pegs and a bench
+    box('UPB_bathdoor', sx1 - 0.045, sx1 - 0.005, dy0 + 0.01, dy1 - 0.01, f0, f0 + 2.07, ow, c, 0.003)
+    box('UPB_bathdoor_pull', sx1 - 0.005, sx1 + 0.02, dy1 - 0.13, dy1 - 0.11, f0 + 0.85, f0 + 1.3, M('brass'), c, 0.003)
+    for k in range(5):
+        cyl(f'UPB_peg{k}', 0.014, 0.09, (x1 - 0.045, 7.3 + 0.32 * k, f0 + 1.62), M('brass'), c, 12, rot=(0, math.pi / 2, 0), bev=0)
+    box('UPB_bag', x1 - 0.12, x1 - 0.05, 7.47, 7.83, f0 + 1.05, f0 + 1.58, sand, c, 0.02, 2)
+    box('UPB_lobby_bench', x1 - 0.36, x1, 7.15, 8.75, f0 + 0.06, f0 + 0.44, ow, c, 0.01)
+    box('UPB_lobby_bench_plinth', x1 - 0.32, x1, 7.2, 8.7, f0, f0 + 0.06, M('black_plastic'), c, 0)
+    # desk wall on the shower room: a tall bookcase beside the bunks, a desk with shelves over it
+    cb0 = sy0 - 0.38
+    box('UPB_case_back', x0 + 0.03, 9.6, sy0 - 0.02, sy0, f0, cz, ow, c, 0.002)
+    for k, (a, b) in enumerate(((x0 + 0.03, x0 + 0.06), (9.57, 9.6))):
+        box(f'UPB_case_side{k}', a, b, cb0, sy0 - 0.02, f0, cz, ow, c, 0.003)
+    box('UPB_case_plinth', x0 + 0.06, 9.57, cb0, sy0 - 0.02, f0, f0 + 0.1, ow, c, 0.003)
+    for k in range(6):
+        z = f0 + 0.38 + 0.44 * k
+        box(f'UPB_case_shelf{k}', x0 + 0.06, 9.57, cb0, sy0 - 0.02, z - 0.025, z, ow, c, 0.003)
+        if k < 5:
+            books_row(f'UPB_books{k}', c, x0 + 0.09, 9.54, sy0 - 0.03, z, 0.28, M('books_attr'), axis='X', seed=70 + k, face=-1)
+    box('UPB_desk', 9.65, sx1, sy0 - 0.58, sy0, f0 + 0.72, f0 + 0.76, ow, c, 0.006)
+    box('UPB_desk_pedestal', 9.65, 10.1, sy0 - 0.56, sy0, f0, f0 + 0.72, ow, c, 0.006)
+    box('UPB_desk_end', sx1 - 0.04, sx1, sy0 - 0.58, sy0, f0, f0 + 0.72, ow, c, 0.004)
+    for k, z in enumerate((f0 + 1.28, f0 + 1.7)):
+        box(f'UPB_shelf{k}', 9.65, sx1, sy0 - 0.26, sy0, z, z + 0.03, ow, c, 0.004)
+    books_row('UPB_deskbooks', c, 9.7, 10.35, sy0 - 0.02, f0 + 1.31, 0.22, M('books_attr'), axis='X', seed=81, face=-1)
+    lathe('UPB_jar', [(0.0, 0.0), (0.06, 0.0), (0.07, 0.05), (0.06, 0.16), (0.0, 0.16)], c, M('ceramic'), 32, (10.55, sy0 - 0.12, f0 + 1.73))
+    cyl('UPB_stool', 0.19, 0.43, (10.3, sy0 - 0.78, f0 + 0.215), ow, c, 32, bev=0.012)
+    cyl('UPB_stool_pad', 0.18, 0.04, (10.3, sy0 - 0.78, f0 + 0.45), lake, c, 32, bev=0.012)
+    cyl('UPB_desklamp_base', 0.07, 0.02, (10.55, sy0 - 0.2, f0 + 0.77), M('brass'), c, 24, bev=0.003)
+    cyl('UPB_desklamp_stem', 0.006, 0.36, (10.55, sy0 - 0.2, f0 + 0.95), M('brass'), c, 8, bev=0)
+    sh = lathe('UPB_desklamp_shade', [(0.03, 1.15 - 0.03), (0.1, 1.15 - 0.16)], c, M('brass'), 32, cap=False)
+    sh.location = (10.55, sy0 - 0.25, f0)
+    sh.modifiers.new('Solid', 'SOLIDIFY').thickness = 0.003
+    point('UPB_desklamp_bulb', (10.55, sy0 - 0.25, f0 + 1.06), 8, 2700, lc, 0.03)
+    # built-in bunks for four along the west wall: two bays, a lower and an upper berth in each
+    bx1 = x0 + 1.05                                                    # front of the bunks (9.55)
+    ya, yb = 1.1, 5.52
+    mid = (ya + yb) / 2
+    bays = ((ya + 0.04, mid - 0.02), (mid + 0.02, yb - 0.04))
+    box('UPB_back', x0, x0 + 0.03, ya, yb, f0, cz, ow, c, 0.002)
+    for k, y in enumerate((ya, mid - 0.02, yb - 0.04)):
+        box(f'UPB_panel{k}', x0 + 0.03, bx1, y, y + 0.04, f0, cz, ow, c, 0.004)
+    box('UPB_soffit', x0 + 0.03, bx1, ya, yb, cz - 0.4, cz, ow, c, 0.004)
+    lo_top, up_base, up_top = f0 + 0.34, f0 + 1.46, f0 + 1.58
+    xm = (x0 + 0.03 + bx1) / 2
+    for n, (b0, b1) in enumerate(bays):
+        box(f'UPB_base{n}', x0 + 0.03, bx1, b0, b1, f0, lo_top, ow, c, 0.006)
+        for j in range(1, 3):
+            yy = b0 + (b1 - b0) * j / 3
+            box(f'UPB_drawer{n}{j}', bx1, bx1 + 0.004, yy - 0.003, yy + 0.003, f0 + 0.06, lo_top - 0.04, M('black_plastic'), c, 0)
+        for j in range(3):
+            sphere(f'UPB_knob{n}{j}', 0.018, (bx1 + 0.012, b0 + (b1 - b0) * (j + 0.5) / 3, f0 + 0.19), M('brass'), c, 2)
+        box(f'UPB_deck{n}', x0 + 0.03, bx1, b0, b1, up_base, up_top, ow, c, 0.004)
+        box(f'UPB_guard{n}', bx1 - 0.04, bx1, b0 + 0.55, b1, up_top, up_top + 0.24, ow, c, 0.004)
+        for j, (zb, duvet) in enumerate(((lo_top, lake if n == 0 else sand), (up_top, sand if n == 0 else lake))):
+            box(f'UPB_mat{n}{j}', x0 + 0.07, bx1 - 0.07, b0 + 0.03, b1 - 0.03, zb, zb + 0.17, cream, c, 0.05, 3)
+            box(f'UPB_duvet{n}{j}', x0 + 0.06, bx1 - 0.05, b0 + 0.03, b1 - 0.6, zb + 0.15, zb + 0.23, duvet, c, 0.04, 3)
+            cbox(f'UPB_pillow{n}{j}', (0.6, 0.34, 0.12), (xm, b1 - 0.3, zb + 0.24), cream, c,
+                 rot=(0, 0, math.radians(R.uniform(-5, 5))), bev=0.05, seg=3)
+            cyl(f'UPB_sconce{n}{j}', 0.045, 0.06, (x0 + 0.06, b1 - 0.16, zb + 0.72), M('brass'), c, 20, rot=(0, math.pi / 2, 0), bev=0.003)
+            point(f'UPB_read{n}{j}', (x0 + 0.2, b1 - 0.16, zb + 0.66), 6, 2700, lc, 0.03)
+        lx = bx1 + 0.035                                               # ladder at the south end of the bay
+        for j, yy in enumerate((b0 + 0.08, b0 + 0.46)):
+            box(f'UPB_rail{n}{j}', lx - 0.02, lx + 0.02, yy - 0.02, yy + 0.02, f0, up_top + 0.26, ow, c, 0.006)
+        for j in range(5):
+            # rungs stop at the rails' inner faces: a rung's only vertices are its end rings, and
+            # buried inside the rails they would bake black (small objects carry light per vertex)
+            cyl(f'UPB_rung{n}{j}', 0.014, 0.33, (lx, b0 + 0.27, f0 + 0.3 + 0.3 * j), ow, c, 12, rot=(math.pi / 2, 0, 0), bev=0)
+    # window seat along the lake window, cushions against the glass; linen blinds raised
+    ws = y0 + 0.55
+    box('UPB_seat', x0, x1, y0, ws, f0, f0 + 0.42, ow, c, 0.008)
+    for j in range(1, 4):
+        xx = x0 + (x1 - x0) * j / 4
+        box(f'UPB_seat_gap{j}', xx - 0.003, xx + 0.003, ws, ws + 0.004, f0 + 0.06, f0 + 0.38, M('black_plastic'), c, 0)
+    box('UPB_seat_pad', x0 + 0.04, x1 - 0.04, y0 + 0.02, ws - 0.02, f0 + 0.42, f0 + 0.5, lake, c, 0.03, 3)
+    for k, (xx, m) in enumerate(((9.0, sand), (9.55, cream), (11.35, sand), (11.95, lake))):
+        cbox(f'UPB_seat_cush{k}', (0.46, 0.14, 0.4), (xx, y0 + 0.12, f0 + 0.68), m, c,
+             rot=(math.radians(-14), 0, math.radians(R.uniform(-6, 6))), bev=0.06, seg=4)
+    for k, (a, b) in enumerate(((x0 + 0.05, 10.45), (10.55, x1 - 0.05))):
+        box(f'UPB_blind{k}', a, b, y0 + 0.02, y0 + 0.1, 6.18, 6.33, sand, c, 0.02, 2)
+    # a chart of the lake over a low chest on the east wall, a toy sailboat on the chest
+    cbox('UPB_art', (0.04, 2.1, 1.25), (x1 - 0.03, 1.25, f0 + 1.62), M('art_lake'), c, bev=0.004)
+    box('UPB_chest', x1 - 0.42, x1, 0.15, 2.35, f0, f0 + 0.46, ow, c, 0.01)
+    box('UPB_chest_gap', x1 - 0.424, x1 - 0.42, 1.247, 1.253, f0 + 0.04, f0 + 0.42, M('black_plastic'), c, 0)
+    cbox('UPB_boat_hull', (0.09, 0.4, 0.07), (x1 - 0.2, 1.75, f0 + 0.5), M('walnut'), c, bev=0.03, seg=3)
+    cyl('UPB_boat_mast', 0.005, 0.42, (x1 - 0.2, 1.77, f0 + 0.74), M('oak'), c, 8, bev=0)
+    mesh_obj('UPB_boat_sail', [(x1 - 0.2, 1.79, f0 + 0.57), (x1 - 0.2, 2.0, f0 + 0.57), (x1 - 0.2, 1.79, f0 + 0.93)], [(0, 1, 2)], c, M('white_matte'))
+    # round rug, low table, two poufs, three paper lanterns hung at different heights
+    rx, ry = 10.65, 2.55
+    cyl('UPB_rug', 1.05, 0.012, (rx, ry, f0 + 0.006), M('rug_lake'), c, 72, bev=0.003)
+    cyl('UPB_table', 0.3, 0.36, (rx + 0.1, ry + 0.05, f0 + 0.18), ow, c, 48, bev=0.012)
+    cyl('UPB_pouf0', 0.25, 0.4, (10.1, 1.75, f0 + 0.2), lake, c, 40, bev=0.05)
+    cyl('UPB_pouf1', 0.23, 0.36, (10.05, 3.3, f0 + 0.18), sand, c, 40, bev=0.05)
+    for k, (dx, dy, z, r) in enumerate(((-0.35, -0.3, 5.55, 0.24), (0.3, 0.2, 5.85, 0.19), (-0.15, 0.5, 5.3, 0.15))):
+        paper_lantern(f'UPB_lantern{k}', c, (rx + 0.1 + dx, ry + 0.05 + dy, z), cz, lc, r)
+    # light: a cool, even fill (the room is lighter than the others), art, lobby and window seat
+    area('UPB_fill', ((x0 + x1) / 2, 2.0, cz - 0.05), 3.4, 75, 3300, lc, size_y=7.0, glossy=False)
+    area('UPB_bounce', ((x0 + x1) / 2, 2.0, f0 + 0.6), 3.4, 35, 3300, lc, rot=(math.pi, 0, 0), size_y=7.0, glossy=False)
+    spot('UPB_art_light', (x1 - 1.1, 1.25, cz - 0.04), 50, 40, 0.6, 3000, lc, aim=(x1, 1.25, f0 + 1.6))
+    for k, y in enumerate((7.6, 9.4)):
+        spot(f'UPB_lobby{k}', (11.65, y, cz - 0.04), 40, 70, 0.8, 2900, lc, aim=(11.6, y, f0))
+    spot('UPB_seat_light', (10.5, -1.2, cz - 0.04), 40, 70, 0.8, 2800, lc, aim=(10.5, -1.6, f0 + 0.45))
+    spot('UPB_bunk_wash', (10.6, 3.3, cz - 0.04), 45, 70, 0.8, 2900, lc, aim=(x0 + 0.5, 3.3, f0 + 1.2))
+
+def upper_principal_suite(c, lc):
+    """The principal suite (7.6 m wide): a freestanding travertine wall carries the bed and hides the
+    dressing room behind it, under a raised, cove-lit coffer; a sitting corner at the east window.
+    You walk it as a loop: in past the dressing room, round one end of the wall, out round the other.
+    Travertine, charcoal wool, cream boucle, bronze."""
+    f0, f1 = arch.UF0 + 0.02, arch.UF1
+    x0, x1 = arch.PARTITIONS[1] + 0.1, 20.26                          # 12.7, east lining face
+    y0 = -1.96
+    tw0, tw1, ty0, ty1, th = 14.3, 18.7, 4.6, 4.9, 2.3                 # the travertine bed wall
+    cx0, cx1, cy0, cy1, cd = arch.COFFER
+    trav, char, cream, sand, bronze = M('travertine_wall'), M('fabric_char'), M('fabric_cream'), M('fabric_sand'), M('metal_dark')
+    bx0, bx1, by0, (dy0, dy1) = arch.PRINCIPAL_BATH
+    # the travertine wall, capped in bronze
+    box('UPP_wall', tw0, tw1, ty0, ty1, f0, f0 + th, trav, c, 0.006)
+    box('UPP_wall_cap', tw0, tw1, ty0, ty1, f0 + th, f0 + th + 0.015, bronze, c, 0.002)
+    # the bed: dark oak platform floating on a shadow plinth, cream linen, a charcoal wool fold
+    bc = (tw0 + tw1) / 2
+    box('UPP_bedbase', bc - 1.2, bc + 1.2, 2.05, ty0 - 0.02, f0 + 0.05, f0 + 0.24, M('beam_dark'), c, 0.01)
+    box('UPP_bedplinth', bc - 1.1, bc + 1.1, 2.15, ty0 - 0.12, f0, f0 + 0.05, M('black_plastic'), c, 0)
+    box('UPP_mattress', bc - 1.1, bc + 1.1, 2.15, ty0 - 0.08, f0 + 0.24, f0 + 0.5, cream, c, 0.06, 4)
+    box('UPP_duvet', bc - 1.13, bc + 1.13, 2.12, 3.15, f0 + 0.48, f0 + 0.55, char, c, 0.03, 3)
+    for k, dx in enumerate((-0.72, 0.0, 0.72)):
+        cbox(f'UPP_pillow{k}', (0.7, 0.18, 0.46), (bc + dx, ty0 - 0.32, f0 + 0.76), cream, c,
+             rot=(math.radians(-10), 0, math.radians(R.uniform(-3, 3))), bev=0.07, seg=4)
+    for k, dx in enumerate((-0.4, 0.4)):
+        cbox(f'UPP_cushion{k}', (0.5, 0.15, 0.34), (bc + dx, ty0 - 0.52, f0 + 0.68), char, c,
+             rot=(math.radians(-14), 0, 0), bev=0.06, seg=4)
+    cyl('UPP_bolster', 0.1, 1.3, (bc, ty0 - 0.72, f0 + 0.6), sand, c, 32, rot=(0, math.pi / 2, 0), bev=0.03)
+    # floating travertine bedside shelves, opal pendants on bronze cables
+    for k, sx in enumerate((-1, 1)):
+        nx = bc + sx * 1.62
+        box(f'UPP_shelf{k}', nx - 0.32, nx + 0.32, ty0 - 0.42, ty0, f0 + 0.44, f0 + 0.52, trav, c, 0.004)
+        globe_pendant(f'UPP_pendant{k}', c, (nx, ty0 - 0.26, f0 + 1.12), f1, lc)
+    for k in range(3):
+        cbox(f'UPP_book{k}', (0.23, 0.16, 0.03), (bc - 1.7, ty0 - 0.2, f0 + 0.535 + 0.031 * k), M('books'), c,
+             rot=(0, 0, R.uniform(-0.25, 0.25)), bev=0.003)
+    lathe('UPP_vessel', [(0.0, 0.0), (0.05, 0.0), (0.08, 0.06), (0.07, 0.17), (0.03, 0.24), (0.035, 0.27), (0.0, 0.27)], c, M('ceramic'), 40, (bc + 1.75, ty0 - 0.2, f0 + 0.52))
+    # rug, a linen bench on bronze at the foot
+    box('UPP_rug', bc - 2.0, bc + 2.0, 0.35, ty0 - 0.05, f0, f0 + 0.015, M('rug_dark'), c, 0.004)
+    box('UPP_bench', bc - 0.85, bc + 0.85, 1.38, 1.82, f0 + 0.36, f0 + 0.46, sand, c, 0.03, 3)
+    for k, dx in enumerate((-0.78, 0.78)):
+        box(f'UPP_bench_leg{k}', bc + dx - 0.02, bc + dx + 0.02, 1.42, 1.78, f0, f0 + 0.36, bronze, c, 0.003)
+    # sitting corner by the east window: two boucle tub chairs, a round Calacatta table, a drum lamp
+    tx, ty = 19.25, 0.1
+    cyl('UPP_table_top', 0.32, 0.03, (tx, ty, f0 + 0.5), M('marble'), c, 48, bev=0.006)
+    cyl('UPP_table_stem', 0.035, 0.47, (tx, ty, f0 + 0.25), bronze, c, 16, bev=0)
+    cyl('UPP_table_foot', 0.2, 0.02, (tx, ty, f0 + 0.01), bronze, c, 40, bev=0.003)
+    lathe('UPP_bowl', [(0.0, 0.0), (0.06, 0.0), (0.11, 0.04), (0.12, 0.07), (0.11, 0.075), (0.0, 0.02)], c, M('ceramic'), 40, (tx - 0.08, ty + 0.06, f0 + 0.515))
+    tub_chair('UPP_chairA', c, (19.7, 1.05, f0), math.radians(-31), cream)
+    tub_chair('UPP_chairB', c, (18.3, -0.3, f0), math.radians(78), cream)
+    drum_floor_lamp('UPP_floorlamp', c, (19.95, -1.5, f0), lc, 28)
+    # dressing room behind the wall: oak wardrobes with bronze pulls, a console on the back of the wall
+    wr0 = 6.4
+    box('UPP_wardrobe', x0, x0 + 0.62, wr0, arch.GAL_Y, f0, f1, M('oak'), c, 0.004)
+    for i in range(1, 6):
+        y = wr0 + (arch.GAL_Y - wr0) * i / 6
+        box(f'UPP_wr_gap{i}', x0 + 0.62, x0 + 0.624, y - 0.003, y + 0.003, f0 + 0.06, f1 - 0.06, M('black_plastic'), c, 0)
+        box(f'UPP_wr_pull{i}', x0 + 0.624, x0 + 0.65, y - 0.07, y - 0.05, f0 + 0.75, f0 + 1.75, bronze, c, 0.003)
+    box('UPP_wr_led', x0 + 0.62, x0 + 0.63, wr0 + 0.1, arch.GAL_Y - 0.1, f1 - 0.02, f1 - 0.01, M('warm_soft'), c, 0)
+    box('UPP_console', 15.2, 17.4, ty1, ty1 + 0.36, f0 + 0.7, f0 + 0.76, M('beam_dark'), c, 0.005)
+    for k, x in enumerate((15.3, 17.3)):
+        box(f'UPP_console_leg{k}', x - 0.015, x + 0.015, ty1 + 0.02, ty1 + 0.34, f0, f0 + 0.7, bronze, c, 0.003)
+    lathe('UPP_console_vase', [(0.0, 0.0), (0.07, 0.0), (0.12, 0.1), (0.1, 0.32), (0.05, 0.42), (0.06, 0.46), (0.0, 0.46)], c, M('ceramic'), 40, (15.7, ty1 + 0.18, f0 + 0.76))
+    lathe('UPP_console_bowl', [(0.0, 0.0), (0.1, 0.0), (0.16, 0.05), (0.17, 0.08), (0.16, 0.085), (0.0, 0.03)], c, M('ceramic'), 40, (16.9, ty1 + 0.18, f0 + 0.76))
+    # the pair of doors from the gallery, standing open; the bathroom door, closed
+    d0, d1, dh = arch.GAL_DOORS[2]
+    for k, (x, face) in enumerate(((d0 + 0.02, 1), (d1 - 0.06, -1))):
+        box(f'UPP_door{k}', x, x + 0.04, arch.GAL_Y - 0.82, arch.GAL_Y - 0.02, f0, f0 + dh - 0.02, M('oak'), c, 0.003)
+        px = x + 0.04 if face > 0 else x - 0.025   # pull on the face towards the room's middle
+        box(f'UPP_door{k}_pull', px, px + 0.025, arch.GAL_Y - 0.74, arch.GAL_Y - 0.72, f0 + 0.85, f0 + 1.35, bronze, c, 0.003)
+    box('UPP_bathdoor', bx0 + 0.005, bx0 + 0.045, dy0 + 0.01, dy1 - 0.01, f0, f0 + 2.17, M('oak'), c, 0.003)
+    box('UPP_bathdoor_pull', bx0 - 0.02, bx0 + 0.005, dy0 + 0.1, dy0 + 0.12, f0 + 0.85, f0 + 1.35, bronze, c, 0.003)
+    # sheers drawn back at both ends of the lake window
+    curtain('UPP_sheerW', c, x0 + 0.1, x0 + 0.75, -1.8, f0 + 0.03, f1 - 0.05, M('sheer'), folds=6, amp=0.06)
+    curtain('UPP_sheerE', c, 18.25, 18.85, -1.8, f0 + 0.03, f1 - 0.05, M('sheer'), folds=6, amp=0.06)
+    # light: the coffer's cove, the pendants, grazing light on the travertine, lamp-lit sitting corner
+    ctop = f1 + cd
+    for k, (a0, a1, b0, b1) in enumerate(((cx0, cx0 + 0.01, cy0, cy1), (cx1 - 0.01, cx1, cy0, cy1),
+                                          (cx0, cx1, cy0, cy0 + 0.01), (cx0, cx1, cy1 - 0.01, cy1))):
+        box(f'UPP_cove{k}', a0, a1, b0, b1, ctop - 0.06, ctop - 0.04, M('warm_soft'), c, 0)
+    for k, (x, y, sxl, syl) in enumerate((((cx0 + cx1) / 2, cy0 + 0.15, cx1 - cx0 - 0.3, 0.2), ((cx0 + cx1) / 2, cy1 - 0.15, cx1 - cx0 - 0.3, 0.2),
+                                         (cx0 + 0.15, (cy0 + cy1) / 2, 0.2, cy1 - cy0 - 0.6), (cx1 - 0.15, (cy0 + cy1) / 2, 0.2, cy1 - cy0 - 0.6))):
+        area(f'UPP_cove_light{k}', (x, y, f1 + 0.02), sxl, 45, 2800, lc, rot=(math.pi, 0, 0), size_y=syl, glossy=False)
+    area('UPP_fill', (bc, 1.6, ctop - 0.05), 4.6, 70, 2900, lc, size_y=4.6, glossy=False)
+    area('UPP_bounce', (bc, 1.6, f0 + 0.6), 4.6, 40, 3000, lc, rot=(math.pi, 0, 0), size_y=4.6, glossy=False)
+    for k, x in enumerate((bc - 1.5, bc, bc + 1.5)):
+        spot(f'UPP_graze{k}', (x, ty0 - 0.55, ctop - 0.04), 55, 50, 0.8, 2900, lc, aim=(x, ty0, f0 + 0.9))
+    spot('UPP_table_light', (tx, ty, f1 - 0.04), 40, 40, 0.7, 2800, lc, aim=(tx, ty, f0 + 0.5))
+    for k, y in enumerate((6.4, 8.6)):
+        spot(f'UPP_dress{k}', (15.6, y, f1 - 0.04), 50, 75, 0.85, 2900, lc, aim=(14.2, y, f0 + 0.6))
+    area('UPP_dress_fill', (15.8, 7.6, f1 - 0.06), 3.6, 70, 2900, lc, size_y=3.4, glossy=False)
+    spot('UPP_console_light', (16.3, ty1 + 0.9, f1 - 0.04), 40, 50, 0.7, 2900, lc, aim=(16.3, ty1 + 0.18, f0 + 0.8))
+
 def upper_rooms(c, lc):
-    for k, (xa, xb) in enumerate(((2.9, 8.0), (8.4, 13.4), (13.8, 20.2))):
-        cx = (xa + xb) / 2
-        box(f'UP_bed{k}', cx - 1.0, cx + 1.0, 3.9, 6.0, arch.UF0, arch.UF0 + 0.5, M('fabric_cream'), c, 0.05, 3)
-        box(f'UP_head{k}', cx - 1.4, cx + 1.4, 5.88, 6.0, arch.UF0, arch.UF0 + 1.4, M('walnut_panel'), c, 0.01)
-        area(f'UP_light{k}', (cx, 2.0, arch.UF1 - 0.05), 3.0, 120, 2700, lc, size_y=3.0, glossy=False)
-        for sx in (-1, 1):
-            point(f'UP_lamp{k}{sx}', (cx + sx * 1.35, 5.6, arch.UF0 + 0.75), 14, 2600, lc, 0.08)
-        curtain(f'UP_sheer{k}', c, xa + 0.1, xb - 0.1, -1.8, arch.UF0 + 0.05, arch.UF1 - 0.05, M('sheer'), folds=int((xb - xa) * 3), amp=0.04)
+    upper_gallery(c, lc)
+    upper_suite_west(c, lc)
+    upper_bunk_room(c, lc)
+    upper_principal_suite(c, lc)
 
 def build():
     MATS['limestone_wall'] = m_stone_slab('Limestone_Wall', '#d6cdbf', '#c3b8a6', 0.5, (1.2, 0.6), 0.0015, axis='WALL')
     MATS['travertine'] = m_stone_slab('Travertine', '#d8c7ad', '#c6b293', 0.45, (2.0, 2.0), 0.0)
+    # upstairs: the bunk room's limed oak and lake-blue linen, the principal suite's travertine
+    MATS['travertine_wall'] = m_stone_slab('Travertine_Wall', '#dac9ae', '#c3ae8f', 0.55, (1.2, 0.6), 0.0015, axis='WALL')
+    MATS['oak_white'] = m_wood_planks('Oak_White', '#e1cdae', '#b99e7a', 0.3, 3.0, 'X', 0.42, coord='object', plank=False)
+    MATS['oak_boards'] = m_wood_planks('Oak_White_Boards', '#e4d4ba', '#c0a785', 0.14, 3.2, 'Y', 0.6, seam=0.004)
+    MATS['fabric_lake'] = m_fabric('Linen_Lake', '#6d8592')
+    MATS['rug_lake'] = m_rug('Rug_Lake', '#d5d8d4', '#9babb0')
+    MATS['art_lake'] = m_canvas_art('Art_Lake', ['#eceeea', '#a3b6bf', '#55707f', '#dacdb4', '#2d3c46'], 6.1)
+    MATS['emit_paper'] = m_emit('Emit_Paper', kelvin=3000, strength=1.8)
     MATS['books_attr'] = m_books_attr()
     MATS['flames'] = m_flame()
     MATS['sheer'] = m_sheer()

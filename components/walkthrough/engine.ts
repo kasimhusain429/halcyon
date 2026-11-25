@@ -29,6 +29,8 @@ type SceneDesc = {
   atlases: Record<string, { color: string; light: string; size: [number, number] }>;
   objects: Record<string, "atlas" | "vertex" | "special" | "water" | "lod">;
   light_scale: number;
+  /** export stamp (bake_rt.py): every file of one export is requested with it */
+  build?: string;
 };
 
 const BASE = "/rt/";
@@ -180,6 +182,8 @@ export class RealtimeEngine {
   private fire: { mat: THREE.MeshBasicMaterial; base: THREE.Color }[] = [];
   private wordmark: THREE.Mesh | null = null;
   private wordAspect = 5;
+  /** "?v=<build>" from scene.json, appended to every file of the export */
+  private version = "";
   private disposables: { dispose: () => void }[] = [];
 
   private constructor(canvas: HTMLCanvasElement) {
@@ -215,10 +219,11 @@ export class RealtimeEngine {
   private async load(onProgress: (f: number) => void) {
     const draco = new DRACOLoader().setDecoderPath(`${BASE}draco/`);
     const loader = new GLTFLoader().setDRACOLoader(draco);
-    const [desc, gltf] = await Promise.all([
-      fetch(`${BASE}scene.json`).then((r) => r.json() as Promise<SceneDesc>),
-      loader.loadAsync(`${BASE}halcyon.glb`, (ev) => onProgress(Math.min(1, ev.loaded / (ev.total || 3.2e6)) * 0.35)),
-    ]);
+    // scene.json first and never from cache: its build stamp then versions the model and every
+    // texture, so a re-export always loads whole (a cached model never meets newer atlases)
+    const desc = (await fetch(`${BASE}scene.json`, { cache: "no-store" }).then((r) => r.json())) as SceneDesc;
+    this.version = desc.build ? `?v=${desc.build}` : "";
+    const gltf = await loader.loadAsync(`${BASE}halcyon.glb${this.version}`, (ev) => onProgress(Math.min(1, ev.loaded / (ev.total || 3.2e6)) * 0.35));
     draco.dispose();
     this.doorOpen = THREE.MathUtils.degToRad(desc.door.open_deg);
     const maps = await this.loadAtlases(desc, (f) => onProgress(0.35 + 0.55 * f));
@@ -342,7 +347,7 @@ export class RealtimeEngine {
     const entries = Object.entries(desc.atlases);
     let done = 0;
     const get = async (file: string, srgb: boolean) => {
-      const t = await tl.loadAsync(`${BASE}${half ? file.replace(/\.webp$/, "_h.webp") : file}`);
+      const t = await tl.loadAsync(`${BASE}${half ? file.replace(/\.webp$/, "_h.webp") : file}${this.version}`);
       t.flipY = false; // glTF UVs: v = 0 is the top row
       t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
       t.anisotropy = srgb ? 4 : 1;
@@ -380,7 +385,7 @@ export class RealtimeEngine {
       case "Fire_Flames":
         return new THREE.MeshBasicMaterial({ name, color: new THREE.Color(K1800[0] * 3, K1800[1] * 3, K1800[2] * 3), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
       case "Laptop_Screen": {
-        const tex = new THREE.TextureLoader().load(`${BASE}${d?.image ?? "laptop_screen.png"}`);
+        const tex = new THREE.TextureLoader().load(`${BASE}${d?.image ?? "laptop_screen.png"}${this.version}`);
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.anisotropy = 8;
         this.disposables.push(tex);
